@@ -65,7 +65,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 			body = JSON.parse($response.body ?? "{}");
 			switch (url.pathname) {
 				case "/youtubei/v1/player":
-					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname);
+					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0]);
 					break;
 				case "/youtubei/v1/browse":
 					break;
@@ -102,13 +102,13 @@ Console.info(`FORMAT: ${FORMAT}`);
 							const get_watch_response = new get_watch_response$Type();
 							/******************  initialization finish  *******************/
 							body = get_watch_response.fromBinary(rawBody);
-							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname);
+							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0]);
 							rawBody = get_watch_response.toBinary(body);
 							break;
 						}
 						case "/youtubei/v1/player":
 							body = PlayerResponse.fromBinary(rawBody);
-							if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname);
+							if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0]);
 							rawBody = PlayerResponse.toBinary(body);
 							break;
 						case "/youtubei/v1/browse":
