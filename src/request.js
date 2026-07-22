@@ -22,7 +22,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 	 * 设置
 	 * @type {{Settings: import('./types').Settings}}
 	 */
-	const { Settings, Caches, Configs } = setENV("DualSubs", "YouTube", database);
+	const { Settings, Caches, Configs } = setENV("DualSubs", ["YouTube"], database);
 	Console.logLevel = Settings.LogLevel;
 	// 获取字幕类型与语言
 	const Type = url.searchParams.get("subtype") ?? Settings.Type,
