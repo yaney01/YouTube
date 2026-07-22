@@ -10,6 +10,15 @@ on:
       - "package-lock.json"
       - "rspack.config.js"
       - ".github/workflows/build-auto-source-language.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "rspack.config.js"
+      - ".github/workflows/build-auto-source-language.yml"
   workflow_dispatch:
 
 permissions:
@@ -22,6 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
           submodules: recursive
 
@@ -48,4 +58,4 @@ jobs:
             exit 0
           fi
           git commit -m "build: update auto source bundles [skip ci]"
-          git push
+          git push origin HEAD:auto-source-language
