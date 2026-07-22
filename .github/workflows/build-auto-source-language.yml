@@ -1,50 +1,45 @@
-name: Build auto source language fix
+name: Patch auto source language runtime
 
 on:
   push:
     branches:
       - agent/fix-auto-source-language
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
-  packages: read
 
 jobs:
-  build:
+  patch:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_TOKEN }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Configure GitHub Packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ref: agent/fix-auto-source-language
+      - name: Patch runtime bundles
         run: |
-          npm config set @nsnanocat:registry https://npm.pkg.github.com
-          npm config set //npm.pkg.github.com/:_authToken "$NODE_AUTH_TOKEN"
-      - name: Install dependencies
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm install --legacy-peer-deps --no-audit --no-fund
-      - run: npm run build
-      - name: Update runtime bundles
+          python3 - <<'PY'
+          from pathlib import Path
+
+          files = [
+              Path('archive/js/v1.3/YouTube.request.js'),
+              Path('archive/js/v1.3/YouTube.response.js'),
+          ]
+          old = '"DualSubs","YouTube",'
+          new = '"DualSubs",["YouTube"],'
+          for path in files:
+              content = path.read_text()
+              count = content.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected 1 runtime environment call, found {count}')
+              path.write_text(content.replace(old, new, 1))
+          PY
+          node --check archive/js/v1.3/YouTube.request.js
+          node --check archive/js/v1.3/YouTube.response.js
+      - name: Commit runtime bundles
         run: |
-          cp dist/request.bundle.js archive/js/v1.3/YouTube.request.js
-          cp dist/response.bundle.js archive/js/v1.3/YouTube.response.js
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add archive/js/v1.3/YouTube.request.js archive/js/v1.3/YouTube.response.js
-          if ! git diff --cached --quiet; then
-            git commit -m "build: refresh YouTube runtime scripts"
-            git push
-          fi
+          git commit -m "build: patch YouTube runtime language scope"
+          git push
