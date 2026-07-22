@@ -33,7 +33,13 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
-          submodules: recursive
+          submodules: false
+
+      - name: Prepare protobuf sources
+        shell: bash
+        run: |
+          rm -rf src/protobuf
+          git clone --depth 1 https://github.com/DualSubs/protobuf.git src/protobuf
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
