@@ -1,0 +1,17 @@
+#!name = 📺 YouTube Enhance 简体中文基线测试
+#!desc = Maasea 原版播放链路，固定自动翻译为中文（简体），不包含双语合成
+#!author = Maasea, yaney01
+#!homepage = https://github.com/Maasea/sgmodule
+#!category = 📺 YouTube
+#!version = 2026.07.19-test.1
+
+[Rule]
+URL-REGEX,^https?:\/\/([\w-]+)\.googlevideo\.com\/initplayback(\?.*oad=.+)$,REJECT-TINYGIF
+
+[Script]
+📺 YouTube.Enhance.response.proto = type=http-response, pattern=^https:\/\/youtubei\.googleapis\.com\/(youtubei\/v1\/(browse|next|player|search|reel\/reel_watch_sequence|guide|account\/get_setting|get_watch|log_event|config))(\?(.*))?$, requires-body=1, max-size=-1, binary-body-mode=1, script-path=https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.response.js, argument="{"captionLang":"zh-Hans","blockUpload":false,"blockImmersive":false,"blockShorts":false,"debug":false}"
+📺 YouTube.Enhance.initplayback.request = type=http-request, pattern=^https?:\/\/[\w-]+\.googlevideo\.com\/initplayback.+&ack.*, requires-body=1, max-size=-1, binary-body-mode=1, script-path=https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js, argument="{"captionLang":"zh-Hans"}"
+📺 YouTube.Enhance.log_event.request = type=http-request, pattern=^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/log_event, requires-body=1, max-size=-1, binary-body-mode=1, script-path=https://raw.githubusercontent.com/Maasea/sgmodule/65075cdb388fc5e3094afd7e7314c67b243f3525/Script/Youtube/youtube.request.js
+
+[MITM]
+hostname = %APPEND% youtubei.googleapis.com, -redirector*.googlevideo.com, *.googlevideo.com

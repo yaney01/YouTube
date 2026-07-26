@@ -117,9 +117,14 @@ assert.equal(new URL(protobufTracklist.captionTracks[2].baseUrl).searchParams.ge
 assert.equal(protobufTracklist.audioTracks[0].defaultCaptionTrackIndex, 2);
 
 const surgeModule = await readFile(new URL("../modules/DualSubs.YouTube.AutoSource.sgmodule", import.meta.url), "utf8");
+const maaseaBaselineModule = await readFile(new URL("../modules/YouTube.Enhance.zh-Hans.baseline.sgmodule", import.meta.url), "utf8");
 assert.match(surgeModule, /youtube\.response\.js.*captionLang[^\n]+zh-Hans/);
 assert.doesNotMatch(surgeModule, /Player\.response\.proto[^\n]+dist\/response\.bundle\.js/);
+assert.doesNotMatch(surgeModule, /DualSubs\.YouTube\.Player/);
 assert.doesNotMatch(surgeModule, /boxjs/i);
 assert.doesNotMatch(surgeModule, /\{\{\{/);
+assert.doesNotMatch(maaseaBaselineModule, /boxjs|\{\{\{/i);
+const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
+assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
 
 console.log("Surge source-first automatic translation flow: ok");
