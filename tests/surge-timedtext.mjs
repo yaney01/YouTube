@@ -120,6 +120,8 @@ const surgeModule = await readFile(new URL("../modules/DualSubs.YouTube.AutoSour
 const maaseaBaselineModule = await readFile(new URL("../modules/YouTube.Enhance.zh-Hans.baseline.sgmodule", import.meta.url), "utf8");
 const vendoredEnhanceResponse = await readFile(new URL("../vendor/YouTube.Enhance/youtube.response.js", import.meta.url), "utf8");
 const vendoredEnhanceRequest = await readFile(new URL("../vendor/YouTube.Enhance/youtube.request.js", import.meta.url), "utf8");
+const vendoredCompositeResponse = await readFile(new URL("../vendor/DualSubs.Universal/Composite.Subtitles.response.bundle.js", import.meta.url), "utf8");
+const vendoredTranslateResponse = await readFile(new URL("../vendor/DualSubs.Universal/Translate.response.bundle.js", import.meta.url), "utf8");
 assert.match(surgeModule, /youtube\.response\.js.*captionLang[^\n]+zh-Hans/);
 assert.doesNotMatch(surgeModule, /Player\.response\.proto[^\n]+dist\/response\.bundle\.js/);
 assert.doesNotMatch(surgeModule, /DualSubs\.YouTube\.Player/);
@@ -132,6 +134,10 @@ assert.match(surgeModule, /yaney01\/YouTube\/codex\/fix-source-language-zh-hans\
 assert.match(surgeModule, /yaney01\/YouTube\/codex\/fix-source-language-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.request\.js/);
 assert.match(vendoredEnhanceResponse, /^\/\/ Build: 2026\/7\/19 16:16:39/);
 assert.match(vendoredEnhanceRequest, /^\/\/ Build: 2026\/7\/12 22:44:32/);
+assert.match(vendoredCompositeResponse, /console\.log\("Version: 1\.7\.5"\)/);
+assert.match(vendoredTranslateResponse, /console\.log\("Version: 1\.7\.5"\)/);
+const scriptRules = surgeModule.split("\n").filter(line => line.includes("script-path="));
+assert.ok(scriptRules.every(line => line.includes("script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/fix-source-language-zh-hans/")));
 const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
 assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
 
