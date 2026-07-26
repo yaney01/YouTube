@@ -30,7 +30,8 @@
 		"build": "rspack build",
 		"build:dev": "rspack build -c rspack.dev.config.js --mode=development",
 		"build:args": "arguments-builder build",
-		"dts": "arguments-builder dts"
+		"dts": "arguments-builder dts",
+		"test:surge": "npm run build && node tests/surge-timedtext.mjs"
 	},
 	"browserslist": [
 		"iOS >= 15"
@@ -43,7 +44,7 @@
 		"node-polyfill-webpack-plugin": "^4.0.0"
 	},
 	"dependencies": {
-		"@nsnanocat/util": "https://github.com/NSNanoCat/Util/archive/refs/tags/v1.7.6.tar.gz",
+		"@nsnanocat/util": "https://github.com/NSNanoCat/Util/archive/refs/tags/v2.6.11.tar.gz",
 		"@protobuf-ts/runtime": "^2.9.3"
 	}
 }
