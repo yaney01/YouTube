@@ -133,6 +133,7 @@ assert.doesNotMatch(maaseaBaselineModule, /raw\.githubusercontent\.com\/Maasea/)
 assert.match(surgeModule, /yaney01\/YouTube\/codex\/fix-source-language-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.response\.js/);
 assert.match(surgeModule, /yaney01\/YouTube\/codex\/fix-source-language-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.request\.js/);
 assert.match(vendoredEnhanceResponse, /^\/\/ Build: 2026\/7\/19 16:16:39/);
+assert.doesNotMatch(vendoredEnhanceResponse, /&tlang=/);
 assert.match(vendoredEnhanceRequest, /^\/\/ Build: 2026\/7\/12 22:44:32/);
 assert.match(vendoredCompositeResponse, /console\.log\("Version: 1\.7\.5"\)/);
 assert.match(vendoredTranslateResponse, /console\.log\("Version: 1\.7\.5"\)/);
@@ -140,5 +141,57 @@ const scriptRules = surgeModule.split("\n").filter(line => line.includes("script
 assert.ok(scriptRules.every(line => line.includes("script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/fix-source-language-zh-hans/")));
 const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
 assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
+
+globalThis.$argument = JSON.stringify({ captionLang: "zh-Hans", blockUpload: false, blockImmersive: false, blockShorts: false, debug: false });
+globalThis.$request = {
+	url: "https://youtubei.googleapis.com/youtubei/v1/player",
+	method: "POST",
+	headers: { "Content-Type": "application/x-protobuf", "user-agent": "com.google.ios.youtube/21.29.3" },
+};
+globalThis.$response = {
+	headers: { "Content-Type": "application/x-protobuf" },
+	body: new Uint8Array([
+		0x12,
+		0x03,
+		0xaa,
+		0x01,
+		0,
+		...PlayerResponse.toBinary(
+			PlayerResponse.create({
+			captions: {
+				playerCaptionsTracklistRenderer: {
+					captionTracks: [
+						{
+							languageCode: "fr",
+							vssId: "a.fr",
+							kind: "asr",
+							baseUrl: "https://www.youtube.com/api/timedtext?lang=fr&kind=asr",
+							name: { runs: [{ text: "Français (générés automatiquement)" }] },
+							isTranslatable: true,
+						},
+					],
+					audioTracks: [{ captionTrackIndices: [0], defaultCaptionTrackIndex: 0 }],
+					translationLanguages: [{ languageCode: "zh-Hant", languageName: { runs: [{ text: "中文（繁體）" }] } }],
+				},
+			},
+			}),
+		),
+	]),
+};
+completedResponse = undefined;
+
+await import("../vendor/YouTube.Enhance/youtube.response.js?ui-only-caption-regression");
+await new Promise(resolve => setTimeout(resolve, 20));
+
+assert.ok(completedResponse, "Vendored YouTube Enhance response script did not finish");
+const enhancePlayerResponse = PlayerResponse.fromBinary(completedResponse.body);
+const enhanceTracklist = enhancePlayerResponse.captions.playerCaptionsTracklistRenderer;
+assert.equal(enhanceTracklist.captionTracks.length, 1, "UI-only mode must not append a direct tlang caption track");
+assert.equal(new URL(enhanceTracklist.captionTracks[0].baseUrl).searchParams.get("tlang"), null);
+assert.equal(enhanceTracklist.captionTracks[0].isTranslatable, true);
+assert.equal(enhanceTracklist.audioTracks[0].defaultCaptionTrackIndex, 0, "UI-only mode must keep the source track selected");
+assert.ok(enhanceTracklist.translationLanguages.some(language => language.languageCode === "zh-Hans"), "Auto-translate menu must include Simplified Chinese");
+assert.ok(enhanceTracklist.translationLanguages.some(language => language.languageCode === "zh-Hant"), "Existing auto-translate languages must be preserved");
+assert.equal(enhanceTracklist.translationLanguages.filter(language => language.languageCode === "zh-Hans").length, 1);
 
 console.log("Surge source-first automatic translation flow: ok");
