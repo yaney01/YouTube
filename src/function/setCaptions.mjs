@@ -1,5 +1,5 @@
 import { Console } from "@nsnanocat/util";
-import { normalizeLanguage } from "./language.mjs";
+import { isSamePrimaryLanguage, normalizeLanguage } from "./language.mjs";
 
 function getBaseUrlParameter(baseUrl, key) {
 	if (!baseUrl) return undefined;
@@ -18,6 +18,18 @@ function getBaseUrlParameter(baseUrl, key) {
 
 function getTrackLanguage(track) {
 	return track?.languageCode ?? getBaseUrlParameter(track?.baseUrl, "lang") ?? "";
+}
+
+function setBaseUrlParameter(baseUrl, key, value) {
+	if (!baseUrl) return baseUrl;
+	try {
+		const url = new URL(baseUrl);
+		url.searchParams.set(key, value);
+		return url.toString();
+	} catch {
+		const separator = String(baseUrl).includes("?") ? "&" : "?";
+		return `${baseUrl}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+	}
 }
 
 function getTrackName(track) {
@@ -57,6 +69,22 @@ function findSourceTrackIndex(captionTracks, sourceLanguage) {
 	return captionTracks.findIndex(track => normalizeLanguage(getTrackLanguage(track)).split("-")[0] === primaryLanguage);
 }
 
+function findTranslatedTrackIndex(captionTracks, targetLanguage) {
+	const normalizedTarget = normalizeLanguage(targetLanguage);
+	return captionTracks.findIndex(track => normalizeLanguage(getBaseUrlParameter(track?.baseUrl, "tlang")) === normalizedTarget);
+}
+
+function createTranslatedTrack(sourceTrack, targetLanguage, availableTranslationLanguages) {
+	const translationLanguage = availableTranslationLanguages.find(language => normalizeLanguage(language?.languageCode) === normalizeLanguage(targetLanguage));
+	return {
+		baseUrl: setBaseUrlParameter(sourceTrack?.baseUrl, "tlang", targetLanguage),
+		name: translationLanguage?.languageName ?? { runs: [{ text: targetLanguage }] },
+		vssId: `.${targetLanguage}`,
+		languageCode: targetLanguage,
+		isTranslatable: false,
+	};
+}
+
 function setDefaultCaptionTrack(audioTrack, preferredIndex, captionTrackCount) {
 	const availableIndices = Array.isArray(audioTrack.captionTrackIndices) ? audioTrack.captionTrackIndices : [];
 	if (preferredIndex >= 0 && (!availableIndices.length || availableIndices.includes(preferredIndex))) {
@@ -69,7 +97,7 @@ function setDefaultCaptionTrack(audioTrack, preferredIndex, captionTrackCount) {
 	if (!hasValidCurrentIndex && availableIndices.length) audioTrack.defaultCaptionTrackIndex = availableIndices[0];
 }
 
-export default function setCaptions(captions, translationLanguages, hostname, sourceLanguage = "AUTO") {
+export default function setCaptions(captions, translationLanguages, hostname, sourceLanguage = "AUTO", targetLanguage = undefined) {
 	Console.log("☑️ Set Captions");
 	// 有播放器字幕列表渲染器
 	if (captions?.playerCaptionsTracklistRenderer) {
@@ -83,10 +111,21 @@ export default function setCaptions(captions, translationLanguages, hostname, so
 			});
 		}
 
+		const availableTranslationLanguages = hostname === "m.youtube.com" || hostname === "youtubei.googleapis.com" ? translationLanguages.MOBILE : translationLanguages.DESKTOP;
 		const captionTracks = Array.isArray(tracklist.captionTracks) ? tracklist.captionTracks : [];
-		const preferredIndex = findSourceTrackIndex(captionTracks, sourceLanguage);
-		if (preferredIndex >= 0) Console.info(`源语言字幕索引: ${preferredIndex}`, `语言: ${getTrackLanguage(captionTracks[preferredIndex]) || "未知"}`);
+		const sourceIndex = findSourceTrackIndex(captionTracks, sourceLanguage);
+		let preferredIndex = sourceIndex;
+		if (sourceIndex >= 0) Console.info(`源语言字幕索引: ${sourceIndex}`, `语言: ${getTrackLanguage(captionTracks[sourceIndex]) || "未知"}`);
 		else Console.warn(`未找到匹配的源语言轨道 (${sourceLanguage})，保留 YouTube 默认字幕轨道`);
+
+		if (sourceIndex >= 0 && targetLanguage && !isSamePrimaryLanguage(getTrackLanguage(captionTracks[sourceIndex]), targetLanguage)) {
+			preferredIndex = findTranslatedTrackIndex(captionTracks, targetLanguage);
+			if (preferredIndex < 0) {
+				captionTracks.push(createTranslatedTrack(captionTracks[sourceIndex], targetLanguage, availableTranslationLanguages));
+				preferredIndex = captionTracks.length - 1;
+			}
+			Console.info(`自动翻译字幕索引: ${preferredIndex}`, `语言: ${targetLanguage}`);
+		}
 
 		if (Array.isArray(tracklist.audioTracks)) {
 			// 改音轨可用性
@@ -94,22 +133,13 @@ export default function setCaptions(captions, translationLanguages, hostname, so
 				audio.visibility = 2; //"ON";
 				audio.hasDefaultTrack = true;
 				audio.captionsInitialState = 3; //"CAPTIONS_INITIAL_STATE_ON_RECOMMENDED";
+				if (preferredIndex >= 0 && Array.isArray(audio.captionTrackIndices) && !audio.captionTrackIndices.includes(preferredIndex)) audio.captionTrackIndices.push(preferredIndex);
 				setDefaultCaptionTrack(audio, preferredIndex, captionTracks.length);
 				return audio;
 			});
 		}
 		// 增加自动翻译可用语言
-		switch (hostname) {
-			case "www.youtube.com":
-			case "tv.youtube.com":
-			default:
-				tracklist.translationLanguages = translationLanguages.DESKTOP;
-				break;
-			case "m.youtube.com":
-			case "youtubei.googleapis.com":
-				tracklist.translationLanguages = translationLanguages.MOBILE;
-				break;
-		}
+		tracklist.translationLanguages = availableTranslationLanguages;
 	}
 	Console.log("✅ Set Captions");
 	return captions;

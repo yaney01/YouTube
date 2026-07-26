@@ -4,7 +4,7 @@ export default {
 			Type: "Official",
 			Types: ["Translate", "External"],
 			Languages: ["AUTO", "ZH-HANS"],
-			AutoCC: true,
+			AutoCC: false,
 			Position: "Forward",
 			ShowOnly: false,
 		},

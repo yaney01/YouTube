@@ -1,5 +1,6 @@
 import { $app, Console, done, Lodash as _ } from "@nsnanocat/util";
 import database from "./function/database.mjs";
+import { resolveLanguage } from "./function/language.mjs";
 import setENV from "./function/setENV.mjs";
 import setCache from "./function/setCache.mjs";
 import setCaptions from "./function/setCaptions.mjs";
@@ -26,6 +27,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 	// 获取字幕类型与语言
 	const Type = url.searchParams.get("subtype") ?? Settings.Type,
 		Languages = [url.searchParams.get("lang")?.toUpperCase?.() ?? Settings.Languages[0], (url.searchParams.get("tlang") ?? Caches?.tlang)?.toUpperCase?.() ?? Settings.Languages[1]];
+	const targetLanguage = resolveLanguage(Settings.Languages?.[1], Configs.Languages);
 	Console.info(`Type: ${Type}`, `Languages: ${Languages}`);
 	// 创建空数据
 	let body = {
@@ -74,7 +76,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 			body = JSON.parse($response.body ?? "{}");
 			switch (url.pathname) {
 				case "/youtubei/v1/player":
-					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0]);
+					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage);
 					break;
 				case "/youtubei/v1/browse":
 					break;
@@ -114,7 +116,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 							/******************  initialization finish  *******************/
 							body = get_watch_response.fromBinary(rawBody);
 							Console.debug(`body: ${JSON.stringify(body)}`);
-							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0]);
+							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage);
 							Console.debug(`body: ${JSON.stringify(body)}`);
 							rawBody = get_watch_response.toBinary(body);
 							break;
@@ -136,7 +138,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 								});
 							};
 							*/
-							if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0]);
+							if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage);
 							Console.debug(`body: ${JSON.stringify(body)}`);
 							rawBody = PlayerResponse.toBinary(body);
 							break;
