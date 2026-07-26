@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { PlayerResponse } from "../src/protobuf/player.response.js";
 
 // Surge 的 WebView 引擎可能同时暴露 CommonJS module 与 $environment。
@@ -114,5 +115,11 @@ const protobufTracklist = protobufPlayerResponse.captions.playerCaptionsTracklis
 assert.equal(protobufTracklist.captionTracks.length, 3);
 assert.equal(new URL(protobufTracklist.captionTracks[2].baseUrl).searchParams.get("tlang"), "zh-Hans");
 assert.equal(protobufTracklist.audioTracks[0].defaultCaptionTrackIndex, 2);
+
+const surgeModule = await readFile(new URL("../modules/DualSubs.YouTube.AutoSource.sgmodule", import.meta.url), "utf8");
+assert.match(surgeModule, /youtube\.response\.js.*captionLang[^\n]+zh-Hans/);
+assert.doesNotMatch(surgeModule, /Player\.response\.proto[^\n]+dist\/response\.bundle\.js/);
+assert.doesNotMatch(surgeModule, /boxjs/i);
+assert.doesNotMatch(surgeModule, /\{\{\{/);
 
 console.log("Surge source-first automatic translation flow: ok");
