@@ -3,8 +3,8 @@ import database from "./function/database.mjs";
 import setENV from "./function/setENV.mjs";
 import setCache from "./function/setCache.mjs";
 import setCaptions from "./function/setCaptions.mjs";
-import { GetWatchResponse } from "./protobuf/google/protos/youtube/api/innertube/GetWatchResponse.js";
-import { PlayerResponse } from "./protobuf/google/protos/youtube/api/innertube/PlayerResponse.js";
+import { GetWatchResponse } from "./protobuf/get_watch.response.js";
+import { PlayerResponse } from "./protobuf/player.response.js";
 import { WireType, UnknownFieldHandler, reflectionMergePartial, MESSAGE_TYPE, MessageType, BinaryReader, isJsonObject, typeofJsonValue, jsonWriteOptions } from "@protobuf-ts/runtime";
 /***************** Processing *****************/
 // 解构URL
@@ -65,7 +65,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 			body = JSON.parse($response.body ?? "{}");
 			switch (url.pathname) {
 				case "/youtubei/v1/player":
-					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname);
+					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0]);
 					break;
 				case "/youtubei/v1/browse":
 					break;
@@ -102,13 +102,13 @@ Console.info(`FORMAT: ${FORMAT}`);
 							const get_watch_response = new get_watch_response$Type();
 							/******************  initialization finish  *******************/
 							body = get_watch_response.fromBinary(rawBody);
-							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname);
+							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0]);
 							rawBody = get_watch_response.toBinary(body);
 							break;
 						}
 						case "/youtubei/v1/player":
 							body = PlayerResponse.fromBinary(rawBody);
-							if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname);
+							if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0]);
 							rawBody = PlayerResponse.toBinary(body);
 							break;
 						case "/youtubei/v1/browse":

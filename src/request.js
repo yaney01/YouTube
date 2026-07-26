@@ -1,9 +1,10 @@
 import { $app, Console, done, Lodash as _, Storage } from "@nsnanocat/util";
 import database from "./function/database.mjs";
+import { isSamePrimaryLanguage, normalizeLanguage, resolveLanguage } from "./function/language.mjs";
 import setENV from "./function/setENV.mjs";
 import setCache from "./function/setCache.mjs";
-import { PlayerRequest } from "./protobuf/google/protos/youtube/api/innertube/PlayerRequest.js";
-import { BrowseRequest } from "./protobuf/google/protos/youtube/api/innertube/BrowseRequest.js";
+import { Browse as BrowseRequest } from "./protobuf/browse.request.js";
+import { PlayerRequest } from "./protobuf/player.request.js";
 // 构造回复数据
 // biome-ignore lint/style/useConst: <explanation>
 let $response = undefined;
@@ -24,6 +25,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 	 */
 	const { Settings, Caches, Configs } = setENV("DualSubs", "YouTube", database);
 	Console.logLevel = Settings.LogLevel;
+	const configuredTargetLanguage = resolveLanguage(Settings.Languages?.[1], Configs.Languages);
 	// 获取字幕类型与语言
 	const Type = url.searchParams.get("subtype") ?? Settings.Type,
 		Languages = [url.searchParams.get("lang")?.toUpperCase?.() ?? Settings.Languages[0], (url.searchParams.get("tlang") ?? Caches?.tlang)?.toUpperCase?.() ?? Settings.Languages[1]];
@@ -155,12 +157,12 @@ Console.info(`FORMAT: ${FORMAT}`);
 								// 自动翻译字幕
 								switch (Settings.AutoCC) {
 									case true:
-									default:
+									default: {
 										Console.info("自动翻译字幕：开启");
-										if (Caches.tlang) {
-											if (Caches.tlang !== lang) url.searchParams.set("tlang", Caches.tlang);
-										}
+										const targetLanguage = configuredTargetLanguage ?? Caches.tlang;
+										if (targetLanguage && normalizeLanguage(targetLanguage) !== "auto" && !isSamePrimaryLanguage(targetLanguage, lang)) url.searchParams.set("tlang", targetLanguage);
 										break;
+									}
 									case false:
 										Console.info("自动翻译字幕：关闭");
 										break;
@@ -177,7 +179,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 									case "Official":
 									default:
 										Console.info("官方字幕：合成器");
-										if (lang?.split?.(/[-_]/)?.[0] === url.searchParams.get("tlang")?.split?.(/[-_]/)?.[0]) Settings.ShowOnly = true;
+										if (isSamePrimaryLanguage(lang, url.searchParams.get("tlang"))) Settings.ShowOnly = true;
 										if (!Settings.ShowOnly) url.searchParams.set("subtype", "Official"); // 官方字幕
 										break;
 									case "Translate":

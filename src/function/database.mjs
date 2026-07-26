@@ -3,8 +3,9 @@ export default {
 		Settings: {
 			Type: "Official",
 			Types: ["Translate", "External"],
-			Languages: ["AUTO", "ZH"],
+			Languages: ["AUTO", "ZH-HANS"],
 			AutoCC: true,
+			Position: "Forward",
 			ShowOnly: false,
 		},
 		Configs: {

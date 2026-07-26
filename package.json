@@ -43,7 +43,7 @@
 		"node-polyfill-webpack-plugin": "^4.0.0"
 	},
 	"dependencies": {
-		"@nsnanocat/util": "^1.7.6",
+		"@nsnanocat/util": "https://github.com/NSNanoCat/Util/archive/refs/tags/v1.7.6.tar.gz",
 		"@protobuf-ts/runtime": "^2.9.3"
 	}
 }
