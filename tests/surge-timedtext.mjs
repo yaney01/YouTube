@@ -293,6 +293,13 @@ assert.match("https://r5---sn-test.googlevideo.com/initplayback?oad=5500&c=IOS",
 assert.match("https://r5---sn-test.googlevideo.com/initplayback?c=IOS&ack=1", initPlaybackRegex, "fallback must keep covering initplayback requests with ack");
 assert.doesNotMatch(surgeModule, /YouTube\.Enhance\.initplayback\.request/);
 assert.doesNotMatch(surgeModule, /URL-REGEX,[^\n]*initplayback/);
+const adBreakRule = surgeModule.split("\n").find(line => line.startsWith("🛡️ YouTube.player.ad_break.reject"));
+assert.match(adBreakRule ?? "", /src\/player\.ad-break\.reject\.js\?v=1\.3\.7-test\.19/);
+const adBreakPattern = adBreakRule?.match(/pattern=(.*?), script-path=/)?.[1];
+assert.ok(adBreakPattern, "Surge module must define the player/ad_break reject pattern");
+const adBreakRegex = new RegExp(adBreakPattern);
+assert.match("https://youtubei.googleapis.com/youtubei/v1/player/ad_break", adBreakRegex);
+assert.doesNotMatch("https://youtubei.googleapis.com/youtubei/v1/player", adBreakRegex, "ad-break rejection must not intercept the normal player response");
 assert.doesNotMatch(surgeModule, /boxjs/i);
 assert.doesNotMatch(surgeModule, /\{\{\{/);
 assert.doesNotMatch(maaseaBaselineModule, /boxjs|\{\{\{/i);
@@ -329,6 +336,15 @@ await import("../src/initplayback.fallback.js?surge-test");
 assert.equal(completedInitPlayback?.response?.status, 200);
 assert.equal(completedInitPlayback?.response?.headers?.["Content-Type"], "text/plain");
 assert.equal(completedInitPlayback?.response?.body?.byteLength, 0);
+
+let completedAdBreak;
+globalThis.$done = result => {
+	completedAdBreak = result;
+};
+await import("../src/player.ad-break.reject.js?surge-test");
+assert.equal(completedAdBreak?.response?.status, 200);
+assert.equal(completedAdBreak?.response?.headers?.["Content-Type"], "application/x-protobuf");
+assert.equal(completedAdBreak?.response?.body?.byteLength, 0);
 
 globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&Position="Forward"&Vendor="Google"&ShowOnly="false"&Times="0"&Interval="0"&LogLevel="WARN"&Storage="Argument"';
 const longSourceLines = Array.from({ length: 125 }, (_, index) => `نص عربي طويل للاختبار رقم ${index}`);
