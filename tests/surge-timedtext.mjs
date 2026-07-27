@@ -122,6 +122,7 @@ const vendoredEnhanceResponse = await readFile(new URL("../vendor/YouTube.Enhanc
 const vendoredEnhanceRequest = await readFile(new URL("../vendor/YouTube.Enhance/youtube.request.js", import.meta.url), "utf8");
 const vendoredCompositeResponse = await readFile(new URL("../vendor/DualSubs.Universal/Composite.Subtitles.response.bundle.js", import.meta.url), "utf8");
 const vendoredTranslateResponse = await readFile(new URL("../vendor/DualSubs.Universal/Translate.response.bundle.js", import.meta.url), "utf8");
+const postTranslateResponse = await readFile(new URL("../vendor/DualSubs.Universal/Translate.response.post.bundle.js", import.meta.url), "utf8");
 assert.match(surgeModule, /youtube\.response\.js.*captionLang[^\n]+zh-Hans/);
 assert.doesNotMatch(surgeModule, /Player\.response\.proto[^\n]+dist\/response\.bundle\.js/);
 assert.doesNotMatch(surgeModule, /DualSubs\.YouTube\.Player/);
@@ -137,6 +138,8 @@ assert.doesNotMatch(vendoredEnhanceResponse, /&tlang=/);
 assert.match(vendoredEnhanceRequest, /^\/\/ Build: 2026\/7\/12 22:44:32/);
 assert.match(vendoredCompositeResponse, /console\.log\("Version: 1\.7\.5"\)/);
 assert.match(vendoredTranslateResponse, /console\.log\("Version: 1\.7\.5"\)/);
+assert.match(postTranslateResponse, /console\.log\("Version: 1\.7\.5-post\.1"\)/);
+assert.match(postTranslateResponse, /s\.method="POST"/);
 const scriptRules = surgeModule.split("\n").filter(line => line.includes("script-path="));
 assert.ok(scriptRules.every(line => line.includes("script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/")));
 const timedTextRequestRule = surgeModule.split("\n").find(line => line.startsWith("🍿️ DualSubs.YouTube.TimedText.request"));
@@ -145,11 +148,14 @@ const translateRule = surgeModule.split("\n").find(line => line.startsWith("🍿
 const translatePattern = translateRule?.match(/pattern=(.*?), requires-body=/)?.[1];
 assert.ok(translatePattern, "Surge module must define the translate response pattern");
 assert.match("https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&subtype=Translate", new RegExp(translatePattern));
+assert.match(translateRule ?? "", /Translate\.response\.post\.bundle\.js\?v=1\.7\.5-post\.1/);
+assert.match(translateRule ?? "", /Method="Part"&Times="3"&Interval="500"&Exponential="true"/);
 assert.equal(surgeModule.split("\n").some(line => line.startsWith("🍿️ DualSubs.YouTube.Composite.TimedText.response")), false);
 const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
 assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
 
-globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&Position="Forward"&Vendor="Google"&ShowOnly="false"&LogLevel="WARN"&Storage="Argument"';
+globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&Position="Forward"&Vendor="Google"&ShowOnly="false"&Times="0"&Interval="0"&LogLevel="WARN"&Storage="Argument"';
+const longSourceLines = Array.from({ length: 125 }, (_, index) => `نص عربي طويل للاختبار رقم ${index}`);
 globalThis.$request = {
 	url: "https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&format=json3&subtype=Translate",
 	method: "GET",
@@ -158,18 +164,21 @@ globalThis.$request = {
 globalThis.$response = {
 	headers: { "Content-Type": "application/json" },
 	body: JSON.stringify({
-		events: [
-			{ tStartMs: 0, segs: [{ utf8: "안녕하세요" }] },
-			{ tStartMs: 1000, segs: [{ utf8: "반갑습니다" }] },
-		],
+		events: longSourceLines.map((line, index) => ({ tStartMs: index * 1000, segs: [{ utf8: line }] })),
 	}),
 };
 completedResponse = undefined;
-let translatorRequest;
+const translatorRequests = [];
 globalThis.$httpClient = {
 	get: (request, callback) => {
-		translatorRequest = request;
-		callback(null, { status: 200, headers: { "Content-Type": "application/json" } }, JSON.stringify([[['你好\r很高兴见到你', "안녕하세요\r반갑습니다"]], null]));
+		translatorRequests.push(request);
+		callback(null, { status: 400, headers: { "Content-Type": "text/html" } }, "<html>URI too long</html>");
+	},
+	post: (request, callback) => {
+		translatorRequests.push(request);
+		const sourceLines = new URLSearchParams(request.body).get("q").split("\r");
+		const translatedLines = sourceLines.map(line => `简体中文 ${line.match(/\d+$/)?.[0]}`);
+		callback(null, { status: 200, headers: { "Content-Type": "application/json" } }, JSON.stringify([[[translatedLines.join("\r"), sourceLines.join("\r")]], null]));
 	},
 };
 globalThis.$done = response => {
@@ -179,17 +188,20 @@ delete globalThis.module;
 const originalRandom = Math.random;
 Math.random = () => 0;
 
-await import("../vendor/DualSubs.Universal/Translate.response.bundle.js?translate-route-regression");
+await import("../vendor/DualSubs.Universal/Translate.response.post.bundle.js?translate-route-regression");
 await new Promise(resolve => setTimeout(resolve, 20));
 Math.random = originalRandom;
 globalThis.module = {};
 
-assert.ok(translatorRequest, "Translate response script did not call Google Translate");
-assert.equal(new URL(translatorRequest.url).searchParams.get("tl"), "zh-CN");
+assert.equal(translatorRequests.length, 2, "Google translation must keep the upstream 120-line batching limit");
+assert.ok(translatorRequests.every(request => request.method === "POST"));
+assert.ok(translatorRequests.every(request => !new URL(request.url).searchParams.has("q")));
+assert.ok(translatorRequests.every(request => new URLSearchParams(request.body).get("q").split("\r").length <= 120));
+assert.ok(translatorRequests.every(request => new URLSearchParams(request.body).get("tl") === "zh-CN"));
 assert.ok(completedResponse, "Translate response script did not finish");
 const translatedResponse = JSON.parse(completedResponse.body);
-assert.equal(translatedResponse.events[0].segs[0].utf8, "안녕하세요\n你好");
-assert.equal(translatedResponse.events[1].segs[0].utf8, "반갑습니다\n很高兴见到你");
+assert.equal(translatedResponse.events[0].segs[0].utf8, `${longSourceLines[0]}\n简体中文 0`);
+assert.equal(translatedResponse.events[124].segs[0].utf8, `${longSourceLines[124]}\n简体中文 124`);
 
 globalThis.$argument = JSON.stringify({ captionLang: "zh-Hans", blockUpload: false, blockImmersive: false, blockShorts: false, debug: false });
 globalThis.$request = {
