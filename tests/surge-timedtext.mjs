@@ -130,15 +130,15 @@ assert.doesNotMatch(surgeModule, /\{\{\{/);
 assert.doesNotMatch(maaseaBaselineModule, /boxjs|\{\{\{/i);
 assert.doesNotMatch(surgeModule, /raw\.githubusercontent\.com\/Maasea/);
 assert.doesNotMatch(maaseaBaselineModule, /raw\.githubusercontent\.com\/Maasea/);
-assert.match(surgeModule, /yaney01\/YouTube\/codex\/fix-source-language-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.response\.js/);
-assert.match(surgeModule, /yaney01\/YouTube\/codex\/fix-source-language-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.request\.js/);
+assert.match(surgeModule, /yaney01\/YouTube\/codex\/surge-youtube-bilingual-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.response\.js/);
+assert.match(surgeModule, /yaney01\/YouTube\/codex\/surge-youtube-bilingual-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.request\.js/);
 assert.match(vendoredEnhanceResponse, /^\/\/ Build: 2026\/7\/19 16:16:39/);
 assert.doesNotMatch(vendoredEnhanceResponse, /&tlang=/);
 assert.match(vendoredEnhanceRequest, /^\/\/ Build: 2026\/7\/12 22:44:32/);
 assert.match(vendoredCompositeResponse, /console\.log\("Version: 1\.7\.5"\)/);
 assert.match(vendoredTranslateResponse, /console\.log\("Version: 1\.7\.5"\)/);
 const scriptRules = surgeModule.split("\n").filter(line => line.includes("script-path="));
-assert.ok(scriptRules.every(line => line.includes("script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/fix-source-language-zh-hans/")));
+assert.ok(scriptRules.every(line => line.includes("script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/")));
 const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
 assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
 
