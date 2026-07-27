@@ -70,6 +70,11 @@ Console.info(`FORMAT: ${FORMAT}`);
 				case "/youtubei/v1/player":
 					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage, sourceOnly);
 					break;
+				case "/youtubei/v1/get_watch":
+					for (const content of body?.contents ?? []) {
+						if (content?.playerResponse?.captions) content.playerResponse.captions = setCaptions(content.playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage, sourceOnly);
+					}
+					break;
 				case "/youtubei/v1/browse":
 					break;
 			}
@@ -86,6 +91,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 				case "application/protobuf":
 				case "application/x-protobuf":
 				case "application/vnd.google.protobuf":
+				case "application/octet-stream":
 					switch (url.pathname) {
 						case "/youtubei/v1/get_watch": {
 							/******************  initialization start  *******************/
@@ -105,7 +111,9 @@ Console.info(`FORMAT: ${FORMAT}`);
 							const get_watch_response = new get_watch_response$Type();
 							/******************  initialization finish  *******************/
 							body = get_watch_response.fromBinary(rawBody);
-							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage, sourceOnly);
+							for (const content of body?.contents ?? []) {
+								if (content?.playerResponse?.captions) content.playerResponse.captions = setCaptions(content.playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage, sourceOnly);
+							}
 							rawBody = get_watch_response.toBinary(body);
 							break;
 						}

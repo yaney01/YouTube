@@ -1,6 +1,36 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { MessageType } from "@protobuf-ts/runtime";
 import { PlayerResponse } from "../src/protobuf/player.response.js";
+
+class WatchNextResponseType extends MessageType {
+	constructor() {
+		super("youtube.api.innertube.WatchNextResponse", []);
+	}
+}
+
+const WatchNextResponse = new WatchNextResponseType();
+
+class GetWatchContentType extends MessageType {
+	constructor() {
+		super("youtube.api.innertube.GetWatchResponse", [
+			{ no: 2, name: "playerResponse", kind: "message", T: () => PlayerResponse },
+			{ no: 3, name: "watchNextResponse", kind: "message", T: () => WatchNextResponse },
+		]);
+	}
+}
+
+const GetWatchContent = new GetWatchContentType();
+
+class GetWatchEnvelopeType extends MessageType {
+	constructor() {
+		super("get_watch_response", [
+			{ no: 1, name: "contents", kind: "message", repeat: 1, T: () => GetWatchContent },
+		]);
+	}
+}
+
+const GetWatchEnvelope = new GetWatchEnvelopeType();
 
 // Surge 的 WebView 引擎可能同时暴露 CommonJS module 与 $environment。
 // 平台检测必须优先识别 Surge，否则 Storage 会误走 Node.js 的 require 路径。
@@ -162,6 +192,56 @@ assert.equal(autoSourceTracklist.audioTracks[0].defaultCaptionTrackIndex, 0, "so
 assert.equal(autoSourceTracklist.defaultCaptionTrackIndex, 0, "iOS player must use the only source track for auto-translate");
 assert.equal(autoSourceTracklist.captionTracks.some(track => new URL(track.baseUrl).searchParams.has("tlang")), false);
 
+globalThis.$request = {
+	url: "https://youtubei.googleapis.com/youtubei/v1/get_watch",
+	method: "POST",
+	headers: { "Content-Type": "application/octet-stream" },
+};
+globalThis.$response = {
+	headers: { "Content-Type": "application/octet-stream" },
+	body: GetWatchEnvelope.toBinary(
+		GetWatchEnvelope.create({
+			contents: [
+				{ watchNextResponse: {} },
+				{
+					playerResponse: {
+						captions: {
+							playerCaptionsTracklistRenderer: {
+								captionTracks: [
+									{ languageCode: "ar", vssId: ".ar", baseUrl: "https://www.youtube.com/api/timedtext?lang=ar", name: { runs: [{ text: "العربية" }] }, isTranslatable: true },
+									{ languageCode: "en", vssId: ".en", baseUrl: "https://www.youtube.com/api/timedtext?lang=en", name: { runs: [{ text: "English" }] }, isTranslatable: true },
+									{ languageCode: "ko", vssId: "a.ko", kind: "asr", baseUrl: "https://www.youtube.com/api/timedtext?lang=ko&kind=asr", name: { runs: [{ text: "한국어 (자동 생성)" }] }, isTranslatable: true },
+								],
+								audioTracks: [{ captionTrackIndices: [0, 1, 2], defaultCaptionTrackIndex: 1 }],
+								translationLanguages: [],
+								defaultCaptionTrackIndex: 1,
+							},
+						},
+					},
+				},
+			],
+		}),
+	),
+};
+completedResponse = undefined;
+
+await import("../dist/response.bundle.js?get-watch-octet-stream-source-only");
+await new Promise(resolve => setTimeout(resolve, 20));
+
+assert.ok(completedResponse, "Surge get_watch response script did not finish");
+const getWatchResponse = GetWatchEnvelope.fromBinary(completedResponse.body);
+const getWatchTracklist = getWatchResponse.contents[1].playerResponse.captions.playerCaptionsTracklistRenderer;
+assert.equal(getWatchTracklist.captionTracks.length, 1, "get_watch must prune translated tracks even when the player is not the first content");
+assert.equal(getWatchTracklist.captionTracks[0].languageCode, "ko");
+assert.equal(new URL(getWatchTracklist.captionTracks[0].baseUrl).searchParams.get("kind"), "asr");
+assert.deepEqual(getWatchTracklist.audioTracks[0].captionTrackIndices, [0]);
+assert.equal(getWatchTracklist.defaultCaptionTrackIndex, 0);
+
+globalThis.$request = {
+	url: "https://youtubei.googleapis.com/youtubei/v1/player",
+	method: "POST",
+	headers: { "Content-Type": "application/protobuf" },
+};
 globalThis.$response = {
 	headers: { "Content-Type": "application/protobuf" },
 	body: PlayerResponse.toBinary(

@@ -4,13 +4,13 @@
 #!homepage = https://github.com/yaney01/YouTube/tree/codex/surge-youtube-bilingual-zh-hans
 #!icon = https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/src/assets/icon_rounded.png
 #!category = 🍿️ DualSubs
-#!version = 1.3.7-test.14
+#!version = 1.3.7-test.15
 
 [Rule]
 URL-REGEX,^https?:\/\/([\w-]+)\.googlevideo\.com\/initplayback(\?.*oad=.+)$,REJECT-TINYGIF
 
 [Script]
-🍿️ DualSubs.YouTube.Player.response.proto = type=http-response, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(player|get_watch)(\?.+)?$, requires-body=1, max-size=-1, binary-body-mode=1, engine=webview, script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/dist/response.bundle.js?v=1.3.7-test.14, argument=Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&UIOnly="true"&SourceOnly="true"&AutoCC="false"&LogLevel="WARN"&Storage="Argument"
+🍿️ DualSubs.YouTube.Player.response.proto = type=http-response, pattern=^https?:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/(player|get_watch)(\?.+)?$, requires-body=1, max-size=-1, binary-body-mode=1, engine=webview, script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/dist/response.bundle.js?v=1.3.7-test.15, argument=Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&UIOnly="true"&SourceOnly="true"&AutoCC="false"&LogLevel="WARN"&Storage="Argument"
 📺 YouTube.Enhance.response.proto = type=http-response, pattern=^https:\/\/youtubei\.googleapis\.com\/(youtubei\/v1\/(browse|next|player|search|reel\/reel_watch_sequence|guide|account\/get_setting|get_watch|log_event|config))(\?(.*))?$, requires-body=1, max-size=-1, binary-body-mode=1, script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/vendor/YouTube.Enhance/youtube.response.js?v=2026.07.26-test.3, argument="{"captionLang":"zh-Hans","blockUpload":false,"blockImmersive":false,"blockShorts":false,"debug":false}"
 📺 YouTube.Enhance.initplayback.request = type=http-request, pattern=^https?:\/\/[\w-]+\.googlevideo\.com\/initplayback.+&ack.*, requires-body=1, max-size=-1, binary-body-mode=1, script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/vendor/YouTube.Enhance/youtube.request.js?v=2026.07.26-test.2, argument="{"captionLang":"zh-Hans"}"
 📺 YouTube.Enhance.log_event.request = type=http-request, pattern=^https:\/\/youtubei\.googleapis\.com\/youtubei\/v1\/log_event, requires-body=1, max-size=-1, binary-body-mode=1, script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/vendor/YouTube.Enhance/youtube.request.js?v=2026.07.26-test.2
