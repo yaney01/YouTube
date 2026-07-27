@@ -44,7 +44,7 @@ await new Promise(resolve => setTimeout(resolve, 20));
 assert.ok(completedRequest, "Surge manual translation request did not finish");
 const manualTranslationUrl = new URL(completedRequest.url);
 assert.equal(manualTranslationUrl.searchParams.get("tlang"), "zh-Hans");
-assert.equal(manualTranslationUrl.searchParams.get("subtype"), "Official");
+assert.equal(manualTranslationUrl.searchParams.get("subtype"), null, "DualSubs markers must not be sent to YouTube");
 
 globalThis.$request = {
 	url: "https://www.youtube.com/youtubei/v1/player",
@@ -139,6 +139,12 @@ assert.match(vendoredCompositeResponse, /console\.log\("Version: 1\.7\.5"\)/);
 assert.match(vendoredTranslateResponse, /console\.log\("Version: 1\.7\.5"\)/);
 const scriptRules = surgeModule.split("\n").filter(line => line.includes("script-path="));
 assert.ok(scriptRules.every(line => line.includes("script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/")));
+const compositeRule = surgeModule.split("\n").find(line => line.startsWith("🍿️ DualSubs.YouTube.Composite.TimedText.response"));
+const compositePattern = compositeRule?.match(/pattern=(.*?), requires-body=/)?.[1];
+assert.ok(compositePattern, "Surge module must define the composite response pattern");
+const compositeUrlPattern = new RegExp(compositePattern);
+assert.match("https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&tlang=zh-Hans&format=srv3", compositeUrlPattern);
+assert.doesNotMatch("https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&format=srv3", compositeUrlPattern);
 const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
 assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
 

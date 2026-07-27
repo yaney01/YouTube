@@ -180,7 +180,6 @@ Console.info(`FORMAT: ${FORMAT}`);
 									default:
 										Console.info("官方字幕：合成器");
 										if (isSamePrimaryLanguage(lang, url.searchParams.get("tlang"))) Settings.ShowOnly = true;
-										if (!Settings.ShowOnly) url.searchParams.set("subtype", "Official"); // 官方字幕
 										break;
 									case "Translate":
 										Console.info("翻译字幕：翻译器");
