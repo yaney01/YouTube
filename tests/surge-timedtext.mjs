@@ -284,8 +284,15 @@ assert.match(playerResponseRule ?? "", /dist\/response\.bundle\.js/);
 assert.match(playerResponseRule ?? "", /UIOnly="true"/);
 assert.match(playerResponseRule ?? "", /SourceOnly="true"/);
 assert.ok(surgeModule.indexOf("🍿️ DualSubs.YouTube.Player.response.proto") < surgeModule.indexOf("📺 YouTube.Enhance.response.proto"), "DualSubs player response rule must stay above YouTube Enhance");
-assert.match(surgeModule, /YouTube\.Enhance\.initplayback\.request.*vendor\/YouTube\.Enhance\/youtube\.request\.js/);
-assert.doesNotMatch(surgeModule, /initplayback\.fallback/);
+const initPlaybackRule = surgeModule.split("\n").find(line => line.startsWith("🍿️ YouTube.initplayback.fallback"));
+assert.match(initPlaybackRule ?? "", /src\/initplayback\.fallback\.js\?v=1\.3\.7-test\.18/);
+const initPlaybackPattern = initPlaybackRule?.match(/pattern=(.*?), requires-body=/)?.[1];
+assert.ok(initPlaybackPattern, "Surge module must define the initplayback fallback pattern");
+const initPlaybackRegex = new RegExp(initPlaybackPattern);
+assert.match("https://r5---sn-test.googlevideo.com/initplayback?oad=5500&c=IOS", initPlaybackRegex, "fallback must cover initplayback requests without ack");
+assert.match("https://r5---sn-test.googlevideo.com/initplayback?c=IOS&ack=1", initPlaybackRegex, "fallback must keep covering initplayback requests with ack");
+assert.doesNotMatch(surgeModule, /YouTube\.Enhance\.initplayback\.request/);
+assert.doesNotMatch(surgeModule, /URL-REGEX,[^\n]*initplayback/);
 assert.doesNotMatch(surgeModule, /boxjs/i);
 assert.doesNotMatch(surgeModule, /\{\{\{/);
 assert.doesNotMatch(maaseaBaselineModule, /boxjs|\{\{\{/i);
@@ -311,8 +318,17 @@ assert.match("https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&subt
 assert.match(translateRule ?? "", /Translate\.response\.post\.bundle\.js\?v=1\.7\.5-post\.1/);
 assert.match(translateRule ?? "", /Method="Part"&Times="3"&Interval="500"&Exponential="true"/);
 assert.equal(surgeModule.split("\n").some(line => line.startsWith("🍿️ DualSubs.YouTube.Composite.TimedText.response")), false);
-const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
-assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
+const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 ") && !line.includes("initplayback"));
+assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule).filter(line => !line.includes("initplayback")));
+
+let completedInitPlayback;
+globalThis.$done = result => {
+	completedInitPlayback = result;
+};
+await import("../src/initplayback.fallback.js?surge-test");
+assert.equal(completedInitPlayback?.response?.status, 200);
+assert.equal(completedInitPlayback?.response?.headers?.["Content-Type"], "text/plain");
+assert.equal(completedInitPlayback?.response?.body?.byteLength, 0);
 
 globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&Position="Forward"&Vendor="Google"&ShowOnly="false"&Times="0"&Interval="0"&LogLevel="WARN"&Storage="Argument"';
 const longSourceLines = Array.from({ length: 125 }, (_, index) => `نص عربي طويل للاختبار رقم ${index}`);
