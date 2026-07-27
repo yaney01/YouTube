@@ -118,7 +118,7 @@ assert.equal(new URL(protobufTracklist.captionTracks[2].baseUrl).searchParams.ge
 assert.equal(protobufTracklist.audioTracks[0].defaultCaptionTrackIndex, 2);
 assert.equal(protobufTracklist.defaultCaptionTrackIndex, 2);
 
-globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&UIOnly="true"&AutoCC="false"&LogLevel="WARN"&Storage="Argument"';
+globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&UIOnly="true"&SourceOnly="true"&AutoCC="false"&LogLevel="WARN"&Storage="Argument"';
 globalThis.$request = {
 	url: "https://youtubei.googleapis.com/youtubei/v1/player",
 	method: "POST",
@@ -131,12 +131,16 @@ globalThis.$response = {
 			captions: {
 				playerCaptionsTracklistRenderer: {
 					captionTracks: [
+						{ languageCode: "ko", vssId: ".ko", baseUrl: "https://www.youtube.com/api/timedtext?lang=ko", name: { runs: [{ text: "한국어" }] }, isTranslatable: true },
+						{ languageCode: "ja", vssId: ".ja", baseUrl: "https://www.youtube.com/api/timedtext?lang=ja", name: { runs: [{ text: "日本語" }] }, isTranslatable: true },
+						{ languageCode: "th", vssId: ".th", baseUrl: "https://www.youtube.com/api/timedtext?lang=th", name: { runs: [{ text: "ไทย" }] }, isTranslatable: true },
 						{ languageCode: "en", vssId: ".en", baseUrl: "https://www.youtube.com/api/timedtext?lang=en", name: { runs: [{ text: "English" }] }, isTranslatable: true },
+						{ languageCode: "vi", vssId: ".vi", baseUrl: "https://www.youtube.com/api/timedtext?lang=vi", name: { runs: [{ text: "Tiếng Việt" }] }, isTranslatable: true },
 						{ languageCode: "ko", vssId: "a.ko", kind: "asr", baseUrl: "https://www.youtube.com/api/timedtext?lang=ko&kind=asr", name: { runs: [{ text: "한국어 (자동 생성)" }] }, isTranslatable: true },
 					],
-					audioTracks: [{ captionTrackIndices: [0, 1], defaultCaptionTrackIndex: 0 }],
+					audioTracks: [{ captionTrackIndices: [0, 1, 2, 3, 4, 5], defaultCaptionTrackIndex: 3 }],
 					translationLanguages: [],
-					defaultCaptionTrackIndex: 0,
+					defaultCaptionTrackIndex: 3,
 				},
 			},
 		}),
@@ -150,10 +154,42 @@ await new Promise(resolve => setTimeout(resolve, 20));
 assert.ok(completedResponse, "UI-only player response script did not finish");
 const autoSourcePlayerResponse = PlayerResponse.fromBinary(completedResponse.body);
 const autoSourceTracklist = autoSourcePlayerResponse.captions.playerCaptionsTracklistRenderer;
-assert.equal(autoSourceTracklist.captionTracks.length, 2, "UI-only mode must not create a direct tlang track");
-assert.equal(autoSourceTracklist.audioTracks[0].defaultCaptionTrackIndex, 1, "UI-only mode must select the ASR source track");
-assert.equal(autoSourceTracklist.defaultCaptionTrackIndex, 1, "iOS player must use the ASR source track for auto-translate");
+assert.equal(autoSourceTracklist.captionTracks.length, 1, "source-only mode must remove remembered fallback tracks");
+assert.equal(autoSourceTracklist.captionTracks[0].languageCode, "ko");
+assert.equal(new URL(autoSourceTracklist.captionTracks[0].baseUrl).searchParams.get("kind"), "asr");
+assert.deepEqual(autoSourceTracklist.audioTracks[0].captionTrackIndices, [0]);
+assert.equal(autoSourceTracklist.audioTracks[0].defaultCaptionTrackIndex, 0, "source-only mode must select the ASR source track");
+assert.equal(autoSourceTracklist.defaultCaptionTrackIndex, 0, "iOS player must use the only source track for auto-translate");
 assert.equal(autoSourceTracklist.captionTracks.some(track => new URL(track.baseUrl).searchParams.has("tlang")), false);
+
+globalThis.$response = {
+	headers: { "Content-Type": "application/protobuf" },
+	body: PlayerResponse.toBinary(
+		PlayerResponse.create({
+			captions: {
+				playerCaptionsTracklistRenderer: {
+					captionTracks: [
+						{ languageCode: "ko", vssId: ".ko", baseUrl: "https://www.youtube.com/api/timedtext?lang=ko", name: { runs: [{ text: "한국어" }] }, isTranslatable: true },
+						{ languageCode: "en", vssId: ".en", baseUrl: "https://www.youtube.com/api/timedtext?lang=en", name: { runs: [{ text: "English" }] }, isTranslatable: true },
+					],
+					audioTracks: [{ captionTrackIndices: [0, 1], defaultCaptionTrackIndex: 1 }],
+					translationLanguages: [],
+					defaultCaptionTrackIndex: 1,
+				},
+			},
+		}),
+	),
+};
+completedResponse = undefined;
+
+await import("../dist/response.bundle.js?source-only-official-source");
+await new Promise(resolve => setTimeout(resolve, 20));
+
+const officialSourcePlayerResponse = PlayerResponse.fromBinary(completedResponse.body);
+const officialSourceTracklist = officialSourcePlayerResponse.captions.playerCaptionsTracklistRenderer;
+assert.equal(officialSourceTracklist.captionTracks.length, 1);
+assert.equal(officialSourceTracklist.captionTracks[0].languageCode, "ko", "source-only mode must fall back to the first official source track");
+assert.deepEqual(officialSourceTracklist.audioTracks[0].captionTrackIndices, [0]);
 
 const surgeModule = await readFile(new URL("../modules/DualSubs.YouTube.AutoSource.sgmodule", import.meta.url), "utf8");
 const maaseaBaselineModule = await readFile(new URL("../modules/YouTube.Enhance.zh-Hans.baseline.sgmodule", import.meta.url), "utf8");
@@ -166,6 +202,7 @@ assert.match(surgeModule, /youtube\.response\.js.*captionLang[^\n]+zh-Hans/);
 const playerResponseRule = surgeModule.split("\n").find(line => line.startsWith("🍿️ DualSubs.YouTube.Player.response.proto"));
 assert.match(playerResponseRule ?? "", /dist\/response\.bundle\.js/);
 assert.match(playerResponseRule ?? "", /UIOnly="true"/);
+assert.match(playerResponseRule ?? "", /SourceOnly="true"/);
 assert.ok(surgeModule.indexOf("🍿️ DualSubs.YouTube.Player.response.proto") < surgeModule.indexOf("📺 YouTube.Enhance.response.proto"), "DualSubs player response rule must stay above YouTube Enhance");
 assert.doesNotMatch(surgeModule, /boxjs/i);
 assert.doesNotMatch(surgeModule, /\{\{\{/);

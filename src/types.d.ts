@@ -43,6 +43,14 @@ export interface Settings {
      */
     UIOnly?: boolean;
     /**
+     * [字幕] 只向自动翻译暴露源语言轨
+     *
+     * 防止客户端恢复记忆的英文等翻译轨作为自动翻译底轨。
+     *
+     * @defaultValue false
+     */
+    SourceOnly?: boolean;
+    /**
      * [字幕] 主语言（源语言）字幕位置
      *
      * 主语言（源语言）字幕的显示位置。

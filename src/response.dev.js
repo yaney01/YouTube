@@ -28,6 +28,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 	const Type = url.searchParams.get("subtype") ?? Settings.Type,
 		Languages = [url.searchParams.get("lang")?.toUpperCase?.() ?? Settings.Languages[0], (url.searchParams.get("tlang") ?? Caches?.tlang)?.toUpperCase?.() ?? Settings.Languages[1]];
 	const targetLanguage = Settings.UIOnly === true ? undefined : resolveLanguage(Settings.Languages?.[1], Configs.Languages);
+	const sourceOnly = Settings.SourceOnly === true;
 	Console.info(`Type: ${Type}`, `Languages: ${Languages}`);
 	// 创建空数据
 	let body = {
@@ -76,7 +77,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 			body = JSON.parse($response.body ?? "{}");
 			switch (url.pathname) {
 				case "/youtubei/v1/player":
-					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage);
+					if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage, sourceOnly);
 					break;
 				case "/youtubei/v1/browse":
 					break;
@@ -116,7 +117,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 							/******************  initialization finish  *******************/
 							body = get_watch_response.fromBinary(rawBody);
 							Console.debug(`body: ${JSON.stringify(body)}`);
-							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage);
+							if (body?.contents?.[0]?.playerResponse?.captions) body.contents[0].playerResponse.captions = setCaptions(body.contents[0].playerResponse.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage, sourceOnly);
 							Console.debug(`body: ${JSON.stringify(body)}`);
 							rawBody = get_watch_response.toBinary(body);
 							break;
@@ -138,7 +139,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 								});
 							};
 							*/
-							if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage);
+							if (body?.captions) body.captions = setCaptions(body.captions, Configs.translationLanguages, url.hostname, Languages[0], targetLanguage, sourceOnly);
 							Console.debug(`body: ${JSON.stringify(body)}`);
 							rawBody = PlayerResponse.toBinary(body);
 							break;
