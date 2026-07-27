@@ -27,7 +27,7 @@ Console.info(`FORMAT: ${FORMAT}`);
 	// 获取字幕类型与语言
 	const Type = url.searchParams.get("subtype") ?? Settings.Type,
 		Languages = [url.searchParams.get("lang")?.toUpperCase?.() ?? Settings.Languages[0], (url.searchParams.get("tlang") ?? Caches?.tlang)?.toUpperCase?.() ?? Settings.Languages[1]];
-	const targetLanguage = resolveLanguage(Settings.Languages?.[1], Configs.Languages);
+	const targetLanguage = Settings.UIOnly === true ? undefined : resolveLanguage(Settings.Languages?.[1], Configs.Languages);
 	Console.info(`Type: ${Type}`, `Languages: ${Languages}`);
 	// 创建空数据
 	let body = {

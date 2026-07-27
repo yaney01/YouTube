@@ -116,6 +116,41 @@ assert.equal(protobufTracklist.captionTracks.length, 3);
 assert.equal(new URL(protobufTracklist.captionTracks[2].baseUrl).searchParams.get("tlang"), "zh-Hans");
 assert.equal(protobufTracklist.audioTracks[0].defaultCaptionTrackIndex, 2);
 
+globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&UIOnly="true"&AutoCC="false"&LogLevel="WARN"&Storage="Argument"';
+globalThis.$request = {
+	url: "https://youtubei.googleapis.com/youtubei/v1/player",
+	method: "POST",
+	headers: { "Content-Type": "application/protobuf" },
+};
+globalThis.$response = {
+	headers: { "Content-Type": "application/protobuf" },
+	body: PlayerResponse.toBinary(
+		PlayerResponse.create({
+			captions: {
+				playerCaptionsTracklistRenderer: {
+					captionTracks: [
+						{ languageCode: "en", vssId: ".en", baseUrl: "https://www.youtube.com/api/timedtext?lang=en", name: { runs: [{ text: "English" }] }, isTranslatable: true },
+						{ languageCode: "ko", vssId: "a.ko", kind: "asr", baseUrl: "https://www.youtube.com/api/timedtext?lang=ko&kind=asr", name: { runs: [{ text: "한국어 (자동 생성)" }] }, isTranslatable: true },
+					],
+					audioTracks: [{ captionTrackIndices: [0, 1], defaultCaptionTrackIndex: 0 }],
+					translationLanguages: [],
+				},
+			},
+		}),
+	),
+};
+completedResponse = undefined;
+
+await import("../dist/response.bundle.js?ui-only-auto-source");
+await new Promise(resolve => setTimeout(resolve, 20));
+
+assert.ok(completedResponse, "UI-only player response script did not finish");
+const autoSourcePlayerResponse = PlayerResponse.fromBinary(completedResponse.body);
+const autoSourceTracklist = autoSourcePlayerResponse.captions.playerCaptionsTracklistRenderer;
+assert.equal(autoSourceTracklist.captionTracks.length, 2, "UI-only mode must not create a direct tlang track");
+assert.equal(autoSourceTracklist.audioTracks[0].defaultCaptionTrackIndex, 1, "UI-only mode must select the ASR source track");
+assert.equal(autoSourceTracklist.captionTracks.some(track => new URL(track.baseUrl).searchParams.has("tlang")), false);
+
 const surgeModule = await readFile(new URL("../modules/DualSubs.YouTube.AutoSource.sgmodule", import.meta.url), "utf8");
 const maaseaBaselineModule = await readFile(new URL("../modules/YouTube.Enhance.zh-Hans.baseline.sgmodule", import.meta.url), "utf8");
 const vendoredEnhanceResponse = await readFile(new URL("../vendor/YouTube.Enhance/youtube.response.js", import.meta.url), "utf8");
@@ -124,8 +159,10 @@ const vendoredCompositeResponse = await readFile(new URL("../vendor/DualSubs.Uni
 const vendoredTranslateResponse = await readFile(new URL("../vendor/DualSubs.Universal/Translate.response.bundle.js", import.meta.url), "utf8");
 const postTranslateResponse = await readFile(new URL("../vendor/DualSubs.Universal/Translate.response.post.bundle.js", import.meta.url), "utf8");
 assert.match(surgeModule, /youtube\.response\.js.*captionLang[^\n]+zh-Hans/);
-assert.doesNotMatch(surgeModule, /Player\.response\.proto[^\n]+dist\/response\.bundle\.js/);
-assert.doesNotMatch(surgeModule, /DualSubs\.YouTube\.Player/);
+const playerResponseRule = surgeModule.split("\n").find(line => line.startsWith("🍿️ DualSubs.YouTube.Player.response.proto"));
+assert.match(playerResponseRule ?? "", /dist\/response\.bundle\.js/);
+assert.match(playerResponseRule ?? "", /UIOnly="true"/);
+assert.ok(surgeModule.indexOf("🍿️ DualSubs.YouTube.Player.response.proto") < surgeModule.indexOf("📺 YouTube.Enhance.response.proto"), "DualSubs player response rule must stay above YouTube Enhance");
 assert.doesNotMatch(surgeModule, /boxjs/i);
 assert.doesNotMatch(surgeModule, /\{\{\{/);
 assert.doesNotMatch(maaseaBaselineModule, /boxjs|\{\{\{/i);

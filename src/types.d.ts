@@ -35,6 +35,14 @@ export interface Settings {
      */
     AutoCC?: boolean;
     /**
+     * [字幕] 仅调整播放器字幕入口与源轨
+     *
+     * 启用后选择自动生成源语言轨，但不创建直连 tlang 翻译轨。
+     *
+     * @defaultValue false
+     */
+    UIOnly?: boolean;
+    /**
      * [字幕] 主语言（源语言）字幕位置
      *
      * 主语言（源语言）字幕的显示位置。
