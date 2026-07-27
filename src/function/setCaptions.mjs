@@ -126,6 +126,7 @@ export default function setCaptions(captions, translationLanguages, hostname, so
 			}
 			Console.info(`自动翻译字幕索引: ${preferredIndex}`, `语言: ${targetLanguage}`);
 		}
+		if (preferredIndex >= 0) tracklist.defaultCaptionTrackIndex = preferredIndex;
 
 		if (Array.isArray(tracklist.audioTracks)) {
 			// 改音轨可用性

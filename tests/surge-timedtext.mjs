@@ -99,6 +99,7 @@ globalThis.$response = {
 					],
 					audioTracks: [{ captionTrackIndices: [0, 1], defaultCaptionTrackIndex: 0 }],
 					translationLanguages: [],
+					defaultCaptionTrackIndex: 0,
 				},
 			},
 		}),
@@ -115,6 +116,7 @@ const protobufTracklist = protobufPlayerResponse.captions.playerCaptionsTracklis
 assert.equal(protobufTracklist.captionTracks.length, 3);
 assert.equal(new URL(protobufTracklist.captionTracks[2].baseUrl).searchParams.get("tlang"), "zh-Hans");
 assert.equal(protobufTracklist.audioTracks[0].defaultCaptionTrackIndex, 2);
+assert.equal(protobufTracklist.defaultCaptionTrackIndex, 2);
 
 globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&UIOnly="true"&AutoCC="false"&LogLevel="WARN"&Storage="Argument"';
 globalThis.$request = {
@@ -134,6 +136,7 @@ globalThis.$response = {
 					],
 					audioTracks: [{ captionTrackIndices: [0, 1], defaultCaptionTrackIndex: 0 }],
 					translationLanguages: [],
+					defaultCaptionTrackIndex: 0,
 				},
 			},
 		}),
@@ -149,6 +152,7 @@ const autoSourcePlayerResponse = PlayerResponse.fromBinary(completedResponse.bod
 const autoSourceTracklist = autoSourcePlayerResponse.captions.playerCaptionsTracklistRenderer;
 assert.equal(autoSourceTracklist.captionTracks.length, 2, "UI-only mode must not create a direct tlang track");
 assert.equal(autoSourceTracklist.audioTracks[0].defaultCaptionTrackIndex, 1, "UI-only mode must select the ASR source track");
+assert.equal(autoSourceTracklist.defaultCaptionTrackIndex, 1, "iOS player must use the ASR source track for auto-translate");
 assert.equal(autoSourceTracklist.captionTracks.some(track => new URL(track.baseUrl).searchParams.has("tlang")), false);
 
 const surgeModule = await readFile(new URL("../modules/DualSubs.YouTube.AutoSource.sgmodule", import.meta.url), "utf8");
