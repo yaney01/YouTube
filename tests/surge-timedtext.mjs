@@ -7,7 +7,7 @@ import { PlayerResponse } from "../src/protobuf/player.response.js";
 globalThis.module = {};
 globalThis.$environment = { "surge-version": "6.0" };
 globalThis.$script = { startTime: Date.now() / 1000 };
-globalThis.$argument = 'Type="Official"&Types="Translate"&AutoCC="false"&Position="Forward"&Vendor="Google"&ShowOnly="false"&LogLevel="WARN"&Storage="Argument"';
+globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&AutoCC="false"&Position="Forward"&Vendor="Google"&ShowOnly="false"&LogLevel="WARN"&Storage="Argument"';
 globalThis.$request = {
 	url: "https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr",
 	method: "GET",
@@ -43,8 +43,8 @@ await new Promise(resolve => setTimeout(resolve, 20));
 
 assert.ok(completedRequest, "Surge manual translation request did not finish");
 const manualTranslationUrl = new URL(completedRequest.url);
-assert.equal(manualTranslationUrl.searchParams.get("tlang"), "zh-Hans");
-assert.equal(manualTranslationUrl.searchParams.get("subtype"), null, "DualSubs markers must not be sent to YouTube");
+assert.equal(manualTranslationUrl.searchParams.get("tlang"), null, "Translate mode must request the source subtitle from YouTube");
+assert.equal(manualTranslationUrl.searchParams.get("subtype"), "Translate");
 
 globalThis.$request = {
 	url: "https://www.youtube.com/youtubei/v1/player",
@@ -139,14 +139,57 @@ assert.match(vendoredCompositeResponse, /console\.log\("Version: 1\.7\.5"\)/);
 assert.match(vendoredTranslateResponse, /console\.log\("Version: 1\.7\.5"\)/);
 const scriptRules = surgeModule.split("\n").filter(line => line.includes("script-path="));
 assert.ok(scriptRules.every(line => line.includes("script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/")));
-const compositeRule = surgeModule.split("\n").find(line => line.startsWith("🍿️ DualSubs.YouTube.Composite.TimedText.response"));
-const compositePattern = compositeRule?.match(/pattern=(.*?), requires-body=/)?.[1];
-assert.ok(compositePattern, "Surge module must define the composite response pattern");
-const compositeUrlPattern = new RegExp(compositePattern);
-assert.match("https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&tlang=zh-Hans&format=srv3", compositeUrlPattern);
-assert.doesNotMatch("https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&format=srv3", compositeUrlPattern);
+const timedTextRequestRule = surgeModule.split("\n").find(line => line.startsWith("🍿️ DualSubs.YouTube.TimedText.request"));
+assert.match(timedTextRequestRule ?? "", /Type="Translate"/);
+const translateRule = surgeModule.split("\n").find(line => line.startsWith("🍿️ DualSubs.YouTube.Translate.TimedText.response"));
+const translatePattern = translateRule?.match(/pattern=(.*?), requires-body=/)?.[1];
+assert.ok(translatePattern, "Surge module must define the translate response pattern");
+assert.match("https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&subtype=Translate", new RegExp(translatePattern));
+assert.equal(surgeModule.split("\n").some(line => line.startsWith("🍿️ DualSubs.YouTube.Composite.TimedText.response")), false);
 const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
 assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
+
+globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&Position="Forward"&Vendor="Google"&ShowOnly="false"&LogLevel="WARN"&Storage="Argument"';
+globalThis.$request = {
+	url: "https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&format=json3&subtype=Translate",
+	method: "GET",
+	headers: {},
+};
+globalThis.$response = {
+	headers: { "Content-Type": "application/json" },
+	body: JSON.stringify({
+		events: [
+			{ tStartMs: 0, segs: [{ utf8: "안녕하세요" }] },
+			{ tStartMs: 1000, segs: [{ utf8: "반갑습니다" }] },
+		],
+	}),
+};
+completedResponse = undefined;
+let translatorRequest;
+globalThis.$httpClient = {
+	get: (request, callback) => {
+		translatorRequest = request;
+		callback(null, { status: 200, headers: { "Content-Type": "application/json" } }, JSON.stringify([[['你好\r很高兴见到你', "안녕하세요\r반갑습니다"]], null]));
+	},
+};
+globalThis.$done = response => {
+	completedResponse = response;
+};
+delete globalThis.module;
+const originalRandom = Math.random;
+Math.random = () => 0;
+
+await import("../vendor/DualSubs.Universal/Translate.response.bundle.js?translate-route-regression");
+await new Promise(resolve => setTimeout(resolve, 20));
+Math.random = originalRandom;
+globalThis.module = {};
+
+assert.ok(translatorRequest, "Translate response script did not call Google Translate");
+assert.equal(new URL(translatorRequest.url).searchParams.get("tl"), "zh-CN");
+assert.ok(completedResponse, "Translate response script did not finish");
+const translatedResponse = JSON.parse(completedResponse.body);
+assert.equal(translatedResponse.events[0].segs[0].utf8, "안녕하세요\n你好");
+assert.equal(translatedResponse.events[1].segs[0].utf8, "반갑습니다\n很高兴见到你");
 
 globalThis.$argument = JSON.stringify({ captionLang: "zh-Hans", blockUpload: false, blockImmersive: false, blockShorts: false, debug: false });
 globalThis.$request = {
