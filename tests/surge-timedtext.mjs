@@ -312,7 +312,7 @@ assert.doesNotMatch(vendoredEnhanceResponse, /&tlang=/);
 assert.match(vendoredEnhanceRequest, /^\/\/ Build: 2026\/7\/12 22:44:32/);
 assert.match(vendoredCompositeResponse, /console\.log\("Version: 1\.7\.5"\)/);
 assert.match(vendoredTranslateResponse, /console\.log\("Version: 1\.7\.5"\)/);
-assert.match(postTranslateResponse, /console\.log\("Version: 1\.7\.5-post\.2"\)/);
+assert.match(postTranslateResponse, /console\.log\("Version: 1\.7\.5-post\.3"\)/);
 assert.match(postTranslateResponse, /s\.method="POST"/);
 const scriptRules = surgeModule.split("\n").filter(line => line.includes("script-path="));
 assert.ok(scriptRules.every(line => line.includes("script-path=https://raw.githubusercontent.com/yaney01/YouTube/codex/surge-youtube-bilingual-zh-hans/")));
@@ -322,7 +322,7 @@ const translateRule = surgeModule.split("\n").find(line => line.startsWith("🍿
 const translatePattern = translateRule?.match(/pattern=(.*?), requires-body=/)?.[1];
 assert.ok(translatePattern, "Surge module must define the translate response pattern");
 assert.match("https://www.youtube.com/api/timedtext?v=test&lang=ko&kind=asr&subtype=Translate", new RegExp(translatePattern));
-assert.match(translateRule ?? "", /Translate\.response\.post\.bundle\.js\?v=1\.7\.5-post\.2/);
+assert.match(translateRule ?? "", /Translate\.response\.post\.bundle\.js\?v=1\.7\.5-post\.3/);
 assert.match(translateRule ?? "", /Method="Part"&Times="3"&Interval="500"&Exponential="true"/);
 assert.equal(surgeModule.split("\n").some(line => line.startsWith("🍿️ DualSubs.YouTube.Composite.TimedText.response")), false);
 const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
@@ -359,9 +359,12 @@ globalThis.$httpClient = {
 	},
 	post: (request, callback) => {
 		translatorRequests.push(request);
-		const sourceLines = new URLSearchParams(request.body).get("q").split("\r");
+		const query = new URLSearchParams(request.body).get("q");
+		const separator = query.includes("\u241e") ? "\u241e" : "\r";
+		const sourceLines = query.split(separator);
 		const translatedLines = sourceLines.map(line => `简体中文 ${line.match(/\d+$/)?.[0]}`);
-		callback(null, { status: 200, headers: { "Content-Type": "application/json" } }, JSON.stringify([[[translatedLines.join("\r"), sourceLines.join("\r")]], null]));
+		const translatedText = separator === "\r" ? translatedLines.join("") : translatedLines.join(separator);
+		callback(null, { status: 200, headers: { "Content-Type": "application/json" } }, JSON.stringify([[[translatedText, query]], null]));
 	},
 };
 globalThis.$done = response => {
@@ -380,7 +383,7 @@ assert.equal(translatorRequests.length, 2, "Google translation must keep the ups
 assert.ok(translatorRequests.every(request => request.method === "POST"));
 assert.ok(translatorRequests.every(request => new URL(request.url).hostname === "translate.googleapis.com"), "Google translation must avoid the clients5 endpoint that times out in Surge");
 assert.ok(translatorRequests.every(request => !new URL(request.url).searchParams.has("q")));
-assert.ok(translatorRequests.every(request => new URLSearchParams(request.body).get("q").split("\r").length <= 120));
+assert.ok(translatorRequests.every(request => new URLSearchParams(request.body).get("q").split("\u241e").length <= 120));
 assert.ok(translatorRequests.every(request => new URLSearchParams(request.body).get("tl") === "zh-CN"));
 assert.ok(completedResponse, "Translate response script did not finish");
 const translatedResponse = JSON.parse(completedResponse.body);
