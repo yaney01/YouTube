@@ -284,10 +284,21 @@ assert.match(playerResponseRule ?? "", /dist\/response\.bundle\.js/);
 assert.match(playerResponseRule ?? "", /UIOnly="true"/);
 assert.match(playerResponseRule ?? "", /SourceOnly="true"/);
 assert.ok(surgeModule.indexOf("🍿️ DualSubs.YouTube.Player.response.proto") < surgeModule.indexOf("📺 YouTube.Enhance.response.proto"), "DualSubs player response rule must stay above YouTube Enhance");
+assert.match(surgeModule, /YouTube\.initplayback\.fallback/);
+assert.match(surgeModule, /src\/initplayback\.fallback\.js\?v=1\.3\.7-test\.16/);
 assert.doesNotMatch(surgeModule, /boxjs/i);
 assert.doesNotMatch(surgeModule, /\{\{\{/);
 assert.doesNotMatch(maaseaBaselineModule, /boxjs|\{\{\{/i);
 assert.doesNotMatch(surgeModule, /raw\.githubusercontent\.com\/Maasea/);
+
+let completedInitPlayback;
+globalThis.$done = result => {
+	completedInitPlayback = result;
+};
+await import("../src/initplayback.fallback.js?surge-test");
+assert.equal(completedInitPlayback?.response?.status, 200);
+assert.equal(completedInitPlayback?.response?.headers?.["Content-Type"], "text/plain");
+assert.equal(completedInitPlayback?.response?.body?.byteLength, 0);
 assert.doesNotMatch(maaseaBaselineModule, /raw\.githubusercontent\.com\/Maasea/);
 assert.match(surgeModule, /yaney01\/YouTube\/codex\/surge-youtube-bilingual-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.response\.js/);
 assert.match(surgeModule, /yaney01\/YouTube\/codex\/surge-youtube-bilingual-zh-hans\/vendor\/YouTube\.Enhance\/youtube\.request\.js/);
@@ -310,7 +321,7 @@ assert.match(translateRule ?? "", /Translate\.response\.post\.bundle\.js\?v=1\.7
 assert.match(translateRule ?? "", /Method="Part"&Times="3"&Interval="500"&Exponential="true"/);
 assert.equal(surgeModule.split("\n").some(line => line.startsWith("🍿️ DualSubs.YouTube.Composite.TimedText.response")), false);
 const getEnhanceRules = module => module.split("\n").filter(line => line.startsWith("📺 "));
-assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule));
+assert.deepEqual(getEnhanceRules(surgeModule), getEnhanceRules(maaseaBaselineModule).filter(line => !line.includes("initplayback.request")));
 
 globalThis.$argument = 'Type="Translate"&Types="Translate"&Languages="AUTO,ZH-HANS"&Position="Forward"&Vendor="Google"&ShowOnly="false"&Times="0"&Interval="0"&LogLevel="WARN"&Storage="Argument"';
 const longSourceLines = Array.from({ length: 125 }, (_, index) => `نص عربي طويل للاختبار رقم ${index}`);
